@@ -2,6 +2,7 @@
 
 namespace Pterodactyl\Http\Controllers\Admin\Extensions\{identifier};
 
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Illuminate\View\Factory as ViewFactory;
 use Illuminate\Http\RedirectResponse;
@@ -84,7 +85,7 @@ class {identifier}ExtensionController extends Controller
      * POST /admin/extensions/cfsubdomain
      * Save per-node Cloudflare configuration.
      */
-    public function post($request): RedirectResponse
+    public function post(Request $request): RedirectResponse
     {
         $request->validate([
             'node_id'        => 'required|integer|exists:nodes,id',
@@ -112,7 +113,7 @@ class {identifier}ExtensionController extends Controller
      * DELETE /admin/extensions/cfsubdomain/{target}/{id}
      * Delete an access point (subdomain binding).
      */
-    public function delete($request, $target, $id): RedirectResponse
+    public function delete(Request $request, $target, $id): RedirectResponse
     {
         if ($target === 'access-point') {
             $accessPoint = DB::table('cf_server_access_points')->where('id', $id)->first();

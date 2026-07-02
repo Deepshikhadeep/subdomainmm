@@ -1,4 +1,7 @@
 {{-- Dashboard Wrapper - Subdomain management popup for client dashboard --}}
+<meta name="cf-base-domain" content="{{ app('Pterodactyl\BlueprintFramework\Libraries\ExtensionLibrary\Admin\BlueprintAdminLibrary')->dbGet('cfsubdomain', 'base_domain') }}">
+<meta name="cf-server-id" content="{{ $server->id }}">
+<meta name="cf-server-uuid" content="{{ $server->uuidShort }}">
 
 {{-- Modal Overlay --}}
 <div id="cf-subdomain-modal" class="cf-modal-overlay" style="display:none;">

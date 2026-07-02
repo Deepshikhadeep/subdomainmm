@@ -9,14 +9,21 @@ const CfSubdomain = {
     apiBase: '/api/client/extensions/cfsubdomain',
 
     init() {
-        const match = window.location.pathname.match(/\/server\/([a-zA-Z0-9]+)/);
-        if (!match) return;
+        const idMeta = document.querySelector('meta[name="cf-server-id"]');
+        const uuidMeta = document.querySelector('meta[name="cf-server-uuid"]');
+        
+        if (idMeta) this.serverId = parseInt(idMeta.content);
+        if (uuidMeta) this.serverUuid = uuidMeta.content;
 
-        this.serverUuid = match[1];
+        if (!this.serverUuid) {
+            const match = window.location.pathname.match(/\/server\/([a-zA-Z0-9]+)/);
+            if (!match) return;
+            this.serverUuid = match[1];
+        }
 
         // Read base domain from a meta tag injected by the wrapper
         const meta = document.querySelector('meta[name="cf-base-domain"]');
-        if (meta) this.baseDomain = meta.content;
+        if (meta && meta.content) this.baseDomain = meta.content;
 
         const suffix = document.getElementById('cf-domain-suffix');
         if (suffix) suffix.textContent = '.' + this.baseDomain;

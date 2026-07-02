@@ -2,6 +2,7 @@
 
 namespace Pterodactyl\BlueprintFramework\Extensions\cfsubdomain;
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
 use Pterodactyl\Http\Controllers\Controller;
@@ -20,10 +21,34 @@ class SubdomainApiController extends Controller
     }
 
     /**
+     * Resolve the server ID from numeric ID, string, or Server model instance.
+     */
+    private function getServerId($server): ?int
+    {
+        if ($server instanceof \Pterodactyl\Models\Server) {
+            return $server->id;
+        }
+
+        if (is_numeric($server)) {
+            return (int) $server;
+        }
+
+        // Look up by uuid or uuidShort
+        $serverModel = DB::table('servers')
+            ->where('uuid', $server)
+            ->orWhere('uuidShort', $server)
+            ->first();
+
+        return $serverModel ? $serverModel->id : null;
+    }
+
+    /**
      * Get all access points for a server.
      */
-    public function getServerSubdomains($request, string $serverId): JsonResponse
+    public function getServerSubdomains(Request $request, $server): JsonResponse
     {
+        $serverId = $this->getServerId($server);
+
         $accessPoints = DB::table('cf_server_access_points')
             ->where('server_id', $serverId)
             ->orderBy('created_at', 'desc')
@@ -38,8 +63,10 @@ class SubdomainApiController extends Controller
     /**
      * Get available allocations (ports) for a server that don't have subdomains yet.
      */
-    public function getAvailablePorts($request, string $serverId): JsonResponse
+    public function getAvailablePorts(Request $request, $server): JsonResponse
     {
+        $serverId = $this->getServerId($server);
+
         // Get all allocations for this server
         $allocations = DB::table('allocations')
             ->where('server_id', $serverId)
@@ -66,15 +93,19 @@ class SubdomainApiController extends Controller
     /**
      * Create a new subdomain binding.
      */
-    public function createSubdomain($request): JsonResponse
+    public function createSubdomain(Request $request): JsonResponse
     {
         $request->validate([
-            'server_id'     => 'required|integer|exists:servers,id',
+            'server_id'     => 'required',
             'allocation_id' => 'required|integer|exists:allocations,id',
             'subdomain'     => 'nullable|string|max:63|regex:/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/',
         ]);
 
-        $serverId     = $request->input('server_id');
+        $serverId = $this->getServerId($request->input('server_id'));
+        if (!$serverId) {
+            return response()->json(['success' => false, 'error' => 'Server not found.'], 404);
+        }
+
         $allocationId = $request->input('allocation_id');
         $subdomain    = $request->input('subdomain');
 
@@ -147,7 +178,7 @@ class SubdomainApiController extends Controller
     /**
      * Delete a subdomain binding.
      */
-    public function deleteSubdomain($request, string $id): JsonResponse
+    public function deleteSubdomain(Request $request, string $id): JsonResponse
     {
         $accessPoint = DB::table('cf_server_access_points')
             ->where('id', $id)
@@ -180,7 +211,7 @@ class SubdomainApiController extends Controller
     /**
      * Get node settings for a specific node.
      */
-    public function getNodeSettings($request, string $nodeId): JsonResponse
+    public function getNodeSettings(Request $request, string $nodeId): JsonResponse
     {
         $settings = DB::table('cf_node_settings')
             ->where('node_id', $nodeId)
