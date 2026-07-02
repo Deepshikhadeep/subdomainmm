@@ -1,0 +1,33 @@
+info:
+  name: 'Cloudflare Subdomain Manager'
+  identifier: 'cfsubdomain'
+  description: 'Automatically bind Cloudflare subdomains to Pterodactyl server ports. Supports Cloudflare Tunnel and DNS-Only routing modes per node.'
+  version: '1.0.0'
+  target: 'beta-2025-09'
+  author: 'Deep Sagar'
+  icon: 'assets/icon.png'
+  website: 'https://github.com/deepsagar'
+
+admin:
+  view: 'admin/view.blade.php'
+  controller: 'admin/controller.php'
+  css: 'admin/admin.css'
+
+dashboard:
+  css: 'dashboard/dashboard.css'
+  wrapper: 'dashboard/wrapper.blade.php'
+
+data:
+  directory: 'private'
+  public: 'public'
+
+requests:
+  views: 'views'
+  app: 'app'
+  routers:
+    application: 'routes/application.php'
+    client: 'routes/client.php'
+    web: 'routes/web.php'
+
+database:
+  migrations: 'migrations'
