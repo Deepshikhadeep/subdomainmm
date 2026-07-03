@@ -28,7 +28,14 @@ const CfSubdomain = {
         const suffix = document.getElementById('cf-domain-suffix');
         if (suffix) suffix.textContent = '.' + this.baseDomain;
 
-        document.getElementById('cf-fab').style.display = 'flex';
+        // Ensure FAB button is visible and clickable
+        const fab = document.getElementById('cf-fab');
+        if (fab) {
+            fab.style.display = 'flex';
+            fab.style.opacity = '1';
+            fab.style.pointerEvents = 'auto';
+        }
+
         this.loadBanner();
 
         const input = document.getElementById('cf-subdomain-input');
@@ -53,12 +60,17 @@ const CfSubdomain = {
     },
 
     openModal() {
-        document.getElementById('cf-subdomain-modal').style.display = 'flex';
+        const modal = document.getElementById('cf-subdomain-modal');
+        if (!modal) return;
+        modal.style.display = 'flex';
+        modal.style.opacity = '1';
+        modal.style.zIndex = '9999';
         this.showList();
     },
 
     closeModal() {
-        document.getElementById('cf-subdomain-modal').style.display = 'none';
+        const modal = document.getElementById('cf-subdomain-modal');
+        if (modal) modal.style.display = 'none';
     },
 
     async showList() {
@@ -74,7 +86,13 @@ const CfSubdomain = {
             document.getElementById('cf-subdomains-list').style.display = 'block';
 
             const tableEl = document.getElementById('cf-subdomains-table');
-            if (data.success && data.data && data.data.length > 0) {
+            
+            if (!data.success) {
+                this.showError('Failed to load subdomains: ' + (data.error || 'Unknown error'));
+                return;
+            }
+
+            if (data.data && data.data.length > 0) {
                 this.serverId = data.data[0].server_id;
                 let html = '<div class="cf-table">';
                 html += '<div class="cf-table-header"><span>Connection</span><span>Port</span><span>Mode</span><span></span></div>';
@@ -92,7 +110,7 @@ const CfSubdomain = {
                 html += '</div>';
                 tableEl.innerHTML = html;
             } else {
-                tableEl.innerHTML = '<div class="cf-empty"><p>No subdomains yet.</p></div>';
+                tableEl.innerHTML = '<div class="cf-empty"><p>No subdomains yet. Add one to get started!</p></div>';
             }
             tableEl.innerHTML += '<button class="cf-btn cf-btn-primary cf-btn-full" onclick="CfSubdomain.showAddForm()" style="margin-top:16px;">+ Add Subdomain</button>';
         } catch (e) {
@@ -111,19 +129,32 @@ const CfSubdomain = {
             });
             const data = await resp.json();
             document.getElementById('cf-loading').style.display = 'none';
-            document.getElementById('cf-add-form').style.display = 'block';
 
             const select = document.getElementById('cf-port-select');
             select.innerHTML = '<option value="">Select port...</option>';
-            if (data.success && data.data) {
-                data.data.forEach(function(alloc) {
-                    const opt = document.createElement('option');
-                    opt.value = alloc.id;
-                    opt.textContent = 'Port ' + alloc.port;
-                    opt.dataset.port = alloc.port;
-                    select.appendChild(opt);
-                });
+            
+            // Check if ports are available
+            if (!data.success) {
+                this.showError('Failed to load ports: ' + (data.error || 'Unknown error'));
+                return;
             }
+
+            if (!data.data || data.data.length === 0) {
+                this.showError('No available ports. All ports already have subdomains bound, or server has no ports configured.');
+                return;
+            }
+
+            // Populate ports
+            data.data.forEach(function(alloc) {
+                const opt = document.createElement('option');
+                opt.value = alloc.id;
+                opt.textContent = 'Port ' + alloc.port + ' (' + (alloc.ip || '0.0.0.0') + ')';
+                opt.dataset.port = alloc.port;
+                opt.dataset.ip = alloc.ip || '0.0.0.0';
+                select.appendChild(opt);
+            });
+
+            document.getElementById('cf-add-form').style.display = 'block';
             document.getElementById('cf-subdomain-input').value = '';
             document.getElementById('cf-connection-preview').style.display = 'none';
             select.onchange = function() { CfSubdomain.onPortSelected(); };
@@ -153,7 +184,22 @@ const CfSubdomain = {
     async bindSubdomain() {
         var allocId = document.getElementById('cf-port-select').value;
         var subdomain = document.getElementById('cf-subdomain-input').value.toLowerCase().trim();
-        if (!allocId) { alert('Select a port first.'); return; }
+        
+        if (!allocId) { 
+            this.showError('Please select a port first.');
+            return;
+        }
+
+        // Validate subdomain if provided
+        if (subdomain && !/^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$/.test(subdomain)) {
+            this.showError('Subdomain must contain only letters, numbers, and hyphens.');
+            return;
+        }
+
+        if (subdomain && subdomain.length > 63) {
+            this.showError('Subdomain must be 63 characters or less.');
+            return;
+        }
 
         var btn = document.getElementById('cf-bind-btn');
         btn.disabled = true;
@@ -180,26 +226,33 @@ const CfSubdomain = {
                 document.getElementById('cf-banner-connection').textContent = data.connection_string;
                 document.getElementById('cf-connection-banner').style.display = 'flex';
             } else {
-                this.showError(data.error || 'Unknown error');
+                this.showError(data.error || 'Unknown error occurred.');
             }
         } catch (e) {
             btn.disabled = false;
             btn.textContent = '🔗 Bind';
+            console.error('[CfSubdomain]', e);
             this.showError('Network error: ' + e.message);
         }
     },
 
     async deleteSubdomain(id) {
-        if (!confirm('Delete this subdomain?')) return;
+        if (!confirm('Delete this subdomain binding? The Cloudflare record will be removed.')) return;
         try {
             var resp = await fetch(this.apiBase + '/subdomains/' + id, {
                 method: 'DELETE',
                 headers: this.getHeaders()
             });
             var data = await resp.json();
-            if (data.success) this.showList();
-            else alert('Error: ' + (data.error || 'Failed'));
-        } catch (e) { alert('Network error: ' + e.message); }
+            if (data.success) {
+                this.showList();
+            } else {
+                this.showError('Failed to delete: ' + (data.error || 'Unknown error'));
+            }
+        } catch (e) { 
+            console.error('[CfSubdomain]', e);
+            this.showError('Network error: ' + e.message);
+        }
     },
 
     showError(msg) {
