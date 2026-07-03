@@ -52,7 +52,7 @@ class CloudflareService
         int $serverId,
         int $allocationId,
         int $port,
-        string $subdomain,
+        ?string $subdomain,
         int $nodeId,
         ?int $createdBy = null
     ): array {
@@ -70,6 +70,17 @@ class CloudflareService
         }
 
         $mode = $nodeSettings->mode;
+
+        // TUNNELED MODE: Subdomain is REQUIRED
+        if ($mode === 'tunneled' && empty($subdomain)) {
+            return ['success' => false, 'error' => 'Subdomain is required for tunneled mode.'];
+        }
+
+        // DNS-ONLY MODE: Use subdomain if provided, otherwise use default domain
+        if ($mode === 'dns_only' && empty($subdomain)) {
+            $subdomain = $nodeSettings->default_domain ?? 'server';
+        }
+
         $fullDomain = $subdomain . '.' . $this->baseDomain;
         $connectionString = $fullDomain . ':' . $port;
 

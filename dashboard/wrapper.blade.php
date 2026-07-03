@@ -24,12 +24,13 @@
             </div>
             <div id="cf-add-form" style="display:none;">
                 <h4 class="cf-section-title">Bind New Subdomain</h4>
+                <div id="cf-mode-hint" class="cf-mode-hint" style="display:none; margin-bottom:16px; padding:12px; border-radius:6px; background:#f5f5f5; border-left:4px solid #0066cc;"></div>
                 <div class="cf-form-group">
                     <label class="cf-label">Port</label>
                     <select id="cf-port-select" class="cf-input"><option value="">Select port...</option></select>
                 </div>
                 <div class="cf-form-group">
-                    <label class="cf-label">Subdomain</label>
+                    <label id="cf-subdomain-label" class="cf-label">Subdomain</label>
                     <div class="cf-input-group">
                         <input type="text" id="cf-subdomain-input" class="cf-input" placeholder="myserver" maxlength="63" />
                         <span class="cf-input-suffix" id="cf-domain-suffix">.domain.com</span>
