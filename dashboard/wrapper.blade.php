@@ -1,5 +1,6 @@
 @if(isset($server))
 {{-- Dashboard Wrapper - Subdomain management popup for client dashboard --}}
+<link rel="stylesheet" href="/extensions/cfsubdomain/dashboard.css">
 <meta name="cf-base-domain" content="{{ app('Pterodactyl\BlueprintFramework\Libraries\ExtensionLibrary\Admin\BlueprintAdminLibrary')->dbGet('cfsubdomain', 'base_domain') }}">
 <meta name="cf-server-id" content="{{ $server->id }}">
 <meta name="cf-server-uuid" content="{{ $server->uuidShort }}">
