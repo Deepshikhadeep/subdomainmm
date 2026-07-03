@@ -13,6 +13,9 @@
             <h3 class="cf-modal-title">Manage Subdomains</h3>
             <button class="cf-modal-close" onclick="CfSubdomain.closeModal()">&times;</button>
         </div>
+        <div id="cf-first-visit-hint" class="cf-first-visit-hint" style="display:none;">
+            <p>This is your first time! Let&apos;s set up a subdomain for your server.</p>
+        </div>
         <div class="cf-modal-body">
             <div id="cf-loading" class="cf-loading">
                 <div class="cf-spinner"></div>

@@ -10,6 +10,7 @@ const CfSubdomain = {
     nodeMode: null,
     defaultDomain: null,
     selectedPort: null,
+    isFirstVisit: false,
 
     init() {
         const idMeta = document.querySelector('meta[name="cf-server-id"]');
@@ -56,9 +57,26 @@ const CfSubdomain = {
                 document.getElementById('cf-banner-connection').textContent = primary.connection_string;
                 document.getElementById('cf-connection-banner').style.display = 'flex';
                 this.serverId = primary.server_id;
+                this.isFirstVisit = false;
+            } else if (data.success && (!data.data || data.data.length === 0)) {
+                // First visit: no subdomains exist
+                this.isFirstVisit = true;
+                this.updateModalForFirstVisit();
+                setTimeout(() => this.openModal(), 500);
             }
         } catch (e) {
             console.warn('CfSubdomain: banner load failed', e);
+        }
+    },
+
+    updateModalForFirstVisit() {
+        const modalTitle = document.querySelector('.cf-modal-title');
+        if (modalTitle) {
+            modalTitle.textContent = 'Set Up Your Subdomain';
+        }
+        const hint = document.getElementById('cf-first-visit-hint');
+        if (hint) {
+            hint.style.display = 'block';
         }
     },
 
@@ -77,6 +95,18 @@ const CfSubdomain = {
     },
 
     async showList() {
+        // Reset modal title if it was changed for first visit
+        if (!this.isFirstVisit) {
+            const modalTitle = document.querySelector('.cf-modal-title');
+            if (modalTitle) {
+                modalTitle.textContent = 'Manage Subdomains';
+            }
+            const hint = document.getElementById('cf-first-visit-hint');
+            if (hint) {
+                hint.style.display = 'none';
+            }
+        }
+        
         this.hideAll();
         document.getElementById('cf-loading').style.display = 'flex';
 
