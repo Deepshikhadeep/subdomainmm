@@ -7,6 +7,10 @@ const CfSubdomain = {
     serverUuid: null,
     baseDomain: 'yourdomain.com',
     apiBase: '/api/client/extensions/cfsubdomain',
+    nodeMode: null,
+    defaultDomain: null,
+    selectedPort: null,
+    isFirstVisit: false,
 
     init() {
         const idMeta = document.querySelector('meta[name="cf-server-id"]');
@@ -53,9 +57,26 @@ const CfSubdomain = {
                 document.getElementById('cf-banner-connection').textContent = primary.connection_string;
                 document.getElementById('cf-connection-banner').style.display = 'flex';
                 this.serverId = primary.server_id;
+                this.isFirstVisit = false;
+            } else if (data.success && (!data.data || data.data.length === 0)) {
+                // First visit: no subdomains exist
+                this.isFirstVisit = true;
+                this.updateModalForFirstVisit();
+                setTimeout(() => this.openModal(), 500);
             }
         } catch (e) {
             console.warn('CfSubdomain: banner load failed', e);
+        }
+    },
+
+    updateModalForFirstVisit() {
+        const modalTitle = document.querySelector('.cf-modal-title');
+        if (modalTitle) {
+            modalTitle.textContent = 'Set Up Your Subdomain';
+        }
+        const hint = document.getElementById('cf-first-visit-hint');
+        if (hint) {
+            hint.style.display = 'block';
         }
     },
 
@@ -74,6 +95,18 @@ const CfSubdomain = {
     },
 
     async showList() {
+        // Reset modal title if it was changed for first visit
+        if (!this.isFirstVisit) {
+            const modalTitle = document.querySelector('.cf-modal-title');
+            if (modalTitle) {
+                modalTitle.textContent = 'Manage Subdomains';
+            }
+            const hint = document.getElementById('cf-first-visit-hint');
+            if (hint) {
+                hint.style.display = 'none';
+            }
+        }
+        
         this.hideAll();
         document.getElementById('cf-loading').style.display = 'flex';
 
@@ -130,9 +163,6 @@ const CfSubdomain = {
             const data = await resp.json();
             document.getElementById('cf-loading').style.display = 'none';
 
-            const select = document.getElementById('cf-port-select');
-            select.innerHTML = '<option value="">Select port...</option>';
-            
             // Check if ports are available
             if (!data.success) {
                 this.showError('Failed to load ports: ' + (data.error || 'Unknown error'));
@@ -144,6 +174,13 @@ const CfSubdomain = {
                 return;
             }
 
+            // Store node mode and default domain
+            this.nodeMode = data.nodeMode;
+            this.defaultDomain = data.defaultDomain;
+
+            const select = document.getElementById('cf-port-select');
+            select.innerHTML = '<option value="">Select port...</option>';
+
             // Populate ports
             data.data.forEach(function(alloc) {
                 const opt = document.createElement('option');
@@ -154,6 +191,9 @@ const CfSubdomain = {
                 select.appendChild(opt);
             });
 
+            // Display form with appropriate mode
+            this.displayFormByMode();
+
             document.getElementById('cf-add-form').style.display = 'block';
             document.getElementById('cf-subdomain-input').value = '';
             document.getElementById('cf-connection-preview').style.display = 'none';
@@ -161,6 +201,40 @@ const CfSubdomain = {
         } catch (e) {
             document.getElementById('cf-loading').style.display = 'none';
             this.showError('Failed to load ports: ' + e.message);
+        }
+    },
+
+    displayFormByMode() {
+        const subdomainLabel = document.getElementById('cf-subdomain-label');
+        const subdomainInput = document.getElementById('cf-subdomain-input');
+        const modeHint = document.getElementById('cf-mode-hint');
+
+        if (this.nodeMode === 'tunneled') {
+            // TUNNELED: Subdomain is REQUIRED
+            if (subdomainLabel) {
+                subdomainLabel.innerHTML = 'Subdomain <span style="color: red;">*</span>';
+            }
+            if (subdomainInput) {
+                subdomainInput.required = true;
+                subdomainInput.placeholder = 'e.g. gameserver (required)';
+            }
+            if (modeHint) {
+                modeHint.innerHTML = '<strong>🔒 Tunneled Mode:</strong> Subdomain is required for tunnel routing.';
+                modeHint.style.display = 'block';
+            }
+        } else {
+            // DNS-ONLY: Subdomain is OPTIONAL
+            if (subdomainLabel) {
+                subdomainLabel.innerHTML = 'Subdomain <span style="color: #888;">(optional)</span>';
+            }
+            if (subdomainInput) {
+                subdomainInput.required = false;
+                subdomainInput.placeholder = 'e.g. gameserver (or leave blank for default)';
+            }
+            if (modeHint) {
+                modeHint.innerHTML = '<strong>🌍 DNS-Only Mode:</strong> Subdomain is optional. Leave blank to use: <code>' + (this.defaultDomain || 'server.yourdomain.com') + '</code>';
+                modeHint.style.display = 'block';
+            }
         }
     },
 
@@ -190,7 +264,15 @@ const CfSubdomain = {
             return;
         }
 
-        // Validate subdomain if provided
+        // TUNNELED MODE: Subdomain is REQUIRED
+        if (this.nodeMode === 'tunneled') {
+            if (!subdomain) {
+                this.showError('Subdomain is required for tunneled mode.');
+                return;
+            }
+        }
+
+        // Validate subdomain format if provided
         if (subdomain && !/^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$/.test(subdomain)) {
             this.showError('Subdomain must contain only letters, numbers, and hyphens.');
             return;
@@ -231,7 +313,6 @@ const CfSubdomain = {
         } catch (e) {
             btn.disabled = false;
             btn.textContent = '🔗 Bind';
-            console.error('[CfSubdomain]', e);
             this.showError('Network error: ' + e.message);
         }
     },

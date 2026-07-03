@@ -78,6 +78,7 @@ class SubdomainApiController extends Controller
 
     /**
      * Get available allocations (ports) for a server that don't have subdomains yet.
+     * Also returns node mode to determine if subdomain is required.
      */
     public function getAvailablePorts(Request $request, $server): JsonResponse
     {
@@ -90,6 +91,23 @@ class SubdomainApiController extends Controller
                     'error'   => 'Server not found.',
                 ], 404);
             }
+
+            // Get server to find its node
+            $serverModel = DB::table('servers')
+                ->where('id', $serverId)
+                ->first(['id', 'node_id']);
+
+            if (!$serverModel) {
+                return response()->json([
+                    'success' => false,
+                    'error'   => 'Server not found.',
+                ], 404);
+            }
+
+            // Get node mode
+            $nodeSettings = DB::table('cf_node_settings')
+                ->where('node_id', $serverModel->node_id)
+                ->first(['mode', 'default_domain']);
 
             // Get all allocations for this server
             $allocations = DB::table('allocations')
@@ -112,8 +130,10 @@ class SubdomainApiController extends Controller
             return response()->json([
                 'success' => true,
                 'data'    => $available,
+                'nodeMode' => $nodeSettings ? $nodeSettings->mode : null,
+                'defaultDomain' => $nodeSettings ? $nodeSettings->default_domain : null,
             ]);
-            } catch (\Exception $e) {
+        } catch (\Exception $e) {
             Log::error('[CfSubdomain] Get available ports error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
