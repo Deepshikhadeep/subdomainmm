@@ -3,6 +3,7 @@
 namespace Pterodactyl\BlueprintFramework\Extensions\cfsubdomain;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Pterodactyl\BlueprintFramework\Libraries\ExtensionLibrary\Admin\BlueprintAdminLibrary as BlueprintExtensionLibrary;
 
 /**
@@ -318,26 +319,44 @@ class CloudflareService
      */
     private function cfApiRequest(string $method, string $url, ?array $data = null): ?array
     {
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Authorization: Bearer ' . $this->apiKey,
-            'Content-Type: application/json',
-        ]);
+        try {
+            $ch = curl_init($url);
+            if ($ch === false) {
+                return null;
+            }
 
-        if ($data !== null) {
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-        }
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Authorization: Bearer ' . $this->apiKey,
+                'Content-Type: application/json',
+            ]);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
 
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+            if ($data !== null) {
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+            }
 
-        if ($response === false) {
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            curl_close($ch);
+
+            if ($response === false) {
+                Log::error('[CfSubdomain] CURL error: ' . $error);
+                return null;
+            }
+
+            $decoded = json_decode($response, true);
+            if ($decoded === null && $response !== '') {
+                Log::error('[CfSubdomain] JSON decode error for: ' . substr($response, 0, 200));
+                return null;
+            }
+
+            return $decoded;
+        } catch (\Exception $e) {
+            Log::error('[CfSubdomain] API request exception: ' . $e->getMessage());
             return null;
         }
-
-        return json_decode($response, true);
     }
 }

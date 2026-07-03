@@ -61,11 +61,16 @@ class EventListener
      */
     public static function getServerAccessPoints(int $serverId): array
     {
-        return DB::table('cf_server_access_points')
-            ->where('server_id', $serverId)
-            ->orderBy('created_at', 'asc')
-            ->get()
-            ->toArray();
+        try {
+            return DB::table('cf_server_access_points')
+                ->where('server_id', $serverId)
+                ->orderBy('created_at', 'asc')
+                ->get()
+                ->toArray();
+        } catch (\Exception $e) {
+            Log::warning("[CfSubdomain] Failed to get access points for server #{$serverId}: " . $e->getMessage());
+            return [];
+        }
     }
 
     /**
@@ -73,11 +78,16 @@ class EventListener
      */
     public static function getPrimaryConnectionString(int $serverId): ?string
     {
-        $primary = DB::table('cf_server_access_points')
-            ->where('server_id', $serverId)
-            ->orderBy('created_at', 'asc')
-            ->first();
+        try {
+            $primary = DB::table('cf_server_access_points')
+                ->where('server_id', $serverId)
+                ->orderBy('created_at', 'asc')
+                ->first();
 
-        return $primary ? $primary->connection_string : null;
+            return $primary ? $primary->connection_string : null;
+        } catch (\Exception $e) {
+            Log::warning("[CfSubdomain] Failed to get primary connection string for server #{$serverId}: " . $e->getMessage());
+            return null;
+        }
     }
 }

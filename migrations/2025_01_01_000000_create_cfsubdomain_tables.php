@@ -27,14 +27,16 @@ return new class extends Migration
             $table->id();
             $table->unsignedInteger('node_id')->unique();
             $table->enum('mode', ['tunneled', 'dns_only'])->default('dns_only');
-            $table->string('tunnel_id')->nullable();
-            $table->string('default_domain')->nullable();
+            $table->string('tunnel_id', 255)->nullable();
+            $table->string('default_domain', 255)->nullable();
             $table->timestamps();
 
             $table->foreign('node_id')
                   ->references('id')
                   ->on('nodes')
                   ->onDelete('cascade');
+
+            $table->index('mode');
         });
 
         // Create server access points (port-to-subdomain mappings) table
@@ -43,10 +45,10 @@ return new class extends Migration
             $table->unsignedInteger('server_id');
             $table->unsignedInteger('allocation_id');
             $table->unsignedInteger('port');
-            $table->string('subdomain')->nullable();
-            $table->string('full_domain');
-            $table->string('connection_string');
-            $table->string('cf_record_id')->nullable();
+            $table->string('subdomain', 63)->nullable();
+            $table->string('full_domain', 255);
+            $table->string('connection_string', 255);
+            $table->string('cf_record_id', 255)->nullable();
             $table->enum('node_mode', ['tunneled', 'dns_only']);
             $table->unsignedInteger('created_by')->nullable();
             $table->timestamps();
@@ -55,6 +57,11 @@ return new class extends Migration
                   ->references('id')
                   ->on('servers')
                   ->onDelete('cascade');
+
+            $table->unique('subdomain');
+            $table->unique('allocation_id');
+            $table->index('server_id');
+            $table->index('full_domain');
         });
     }
 

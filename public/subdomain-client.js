@@ -153,7 +153,22 @@ const CfSubdomain = {
     async bindSubdomain() {
         var allocId = document.getElementById('cf-port-select').value;
         var subdomain = document.getElementById('cf-subdomain-input').value.toLowerCase().trim();
-        if (!allocId) { alert('Select a port first.'); return; }
+        
+        if (!allocId) { 
+            this.showError('Please select a port first.');
+            return;
+        }
+
+        // Validate subdomain if provided
+        if (subdomain && !/^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$/.test(subdomain)) {
+            this.showError('Subdomain must contain only letters, numbers, and hyphens.');
+            return;
+        }
+
+        if (subdomain && subdomain.length > 63) {
+            this.showError('Subdomain must be 63 characters or less.');
+            return;
+        }
 
         var btn = document.getElementById('cf-bind-btn');
         btn.disabled = true;
@@ -180,26 +195,33 @@ const CfSubdomain = {
                 document.getElementById('cf-banner-connection').textContent = data.connection_string;
                 document.getElementById('cf-connection-banner').style.display = 'flex';
             } else {
-                this.showError(data.error || 'Unknown error');
+                this.showError(data.error || 'Unknown error occurred.');
             }
         } catch (e) {
             btn.disabled = false;
             btn.textContent = '🔗 Bind';
+            console.error('[CfSubdomain]', e);
             this.showError('Network error: ' + e.message);
         }
     },
 
     async deleteSubdomain(id) {
-        if (!confirm('Delete this subdomain?')) return;
+        if (!confirm('Delete this subdomain binding? The Cloudflare record will be removed.')) return;
         try {
             var resp = await fetch(this.apiBase + '/subdomains/' + id, {
                 method: 'DELETE',
                 headers: this.getHeaders()
             });
             var data = await resp.json();
-            if (data.success) this.showList();
-            else alert('Error: ' + (data.error || 'Failed'));
-        } catch (e) { alert('Network error: ' + e.message); }
+            if (data.success) {
+                this.showList();
+            } else {
+                this.showError('Failed to delete: ' + (data.error || 'Unknown error'));
+            }
+        } catch (e) { 
+            console.error('[CfSubdomain]', e);
+            this.showError('Network error: ' + e.message);
+        }
     },
 
     showError(msg) {
